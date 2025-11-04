@@ -20,6 +20,7 @@ const Header = () => {
       <Link to="/login" style={{ color: "white", textDecoration: "none" }}>
         Login
       </Link>
+      <Link to="/compose">Compose Mail</Link>
     </div>
   );
 };
