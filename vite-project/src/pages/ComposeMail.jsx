@@ -41,6 +41,7 @@ const ComposeMail = () => {
       subject,
       message, // HTML content
       date: new Date().toISOString(),
+      read: false,
     };
 
     try {
