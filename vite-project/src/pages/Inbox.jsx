@@ -1,73 +1,30 @@
-import React, { useEffect, useReducer, useState, useRef } from "react";
-import axios from "axios";
+import React, { useEffect, useReducer, useState } from "react";
 import { mailReducer, initialMailState } from "../reducers/mailReducer";
 import ComposeMail from "./ComposeMail";
+import { useMailApi } from "../hooks/useMailApi"; // ✅ custom hook
 
 const Inbox = () => {
   const [state, dispatch] = useReducer(mailReducer, initialMailState);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
   const [showCompose, setShowCompose] = useState(false);
 
   const userEmail = localStorage.getItem("email");
-  const cleanEmail = (email) => email?.replace(/[@.]/g, "_");
-  const previousMailsRef = useRef([]); // for shallow compare
 
-  // 🔹 Fetch inbox mails
-  const fetchMails = async () => {
-    const userKey = cleanEmail(userEmail);
-    const url = `https://react-http-1c2c7-default-rtdb.asia-southeast1.firebasedatabase.app/mails/${userKey}/inbox.json`;
+  // ✅ Use custom hook instead of local axios logic
+  const { mails, loading, error, markAsRead } = useMailApi(
+    userEmail,
+    "inbox",
+    2000
+  ); // polling every 2s
 
-    try {
-      const res = await axios.get(url);
-      if (res.data) {
-        const formatted = Object.entries(res.data).map(([id, mail]) => ({
-          id,
-          ...mail,
-        }));
-
-        // 🔸 Compare with previous mails (avoid re-render if same)
-        const newData = JSON.stringify(formatted);
-        const oldData = JSON.stringify(previousMailsRef.current);
-
-        if (newData !== oldData) {
-          previousMailsRef.current = formatted;
-          dispatch({ type: "SET_MAILS", payload: formatted.reverse() });
-        }
-      } else {
-        dispatch({ type: "SET_MAILS", payload: [] });
-      }
-    } catch (err) {
-      console.error(err);
-      setError("❌ Could not load mails.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // 🔹 Initial fetch + start polling every 2 seconds
+  // ✅ Update local reducer state whenever hook data changes
   useEffect(() => {
-    fetchMails(); // first load
-    const interval = setInterval(fetchMails, 2000); // poll every 2s
+    dispatch({ type: "SET_MAILS", payload: mails });
+  }, [mails]);
 
-    return () => clearInterval(interval); // cleanup
-  }, [userEmail]);
-
-  // 🔹 Mark mail as read
-  const markAsRead = async (mailId) => {
+  // ✅ When user clicks on a mail
+  const handleSelectMail = (mailId) => {
     const mail = state.mails.find((m) => m.id === mailId);
-    if (!mail.read) {
-      const userKey = cleanEmail(userEmail);
-      try {
-        await axios.patch(
-          `https://react-http-1c2c7-default-rtdb.asia-southeast1.firebasedatabase.app/mails/${userKey}/inbox/${mailId}.json`,
-          { read: true }
-        );
-        dispatch({ type: "MARK_AS_READ", payload: mailId });
-      } catch (err) {
-        console.error("Error marking mail as read:", err);
-      }
-    }
+    markAsRead(mailId);
     dispatch({ type: "SELECT_MAIL", payload: mail });
   };
 
@@ -146,7 +103,7 @@ const Inbox = () => {
         state.mails.map((mail) => (
           <div
             key={mail.id}
-            onClick={() => markAsRead(mail.id)}
+            onClick={() => handleSelectMail(mail.id)}
             style={{
               display: "flex",
               alignItems: "center",
