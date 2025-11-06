@@ -57,6 +57,25 @@ const Inbox = () => {
     }
     dispatch({ type: "SELECT_MAIL", payload: mail });
   };
+  // 🔹 Delete mail
+  const handleDelete = async (mailId) => {
+    const confirmDelete = window.confirm(
+      "Are you sure you want to delete this mail?"
+    );
+    if (!confirmDelete) return;
+
+    const userKey = cleanEmail(userEmail);
+
+    try {
+      await axios.delete(
+        `https://react-http-1c2c7-default-rtdb.asia-southeast1.firebasedatabase.app/mails/${userKey}/inbox/${mailId}.json`
+      );
+      dispatch({ type: "DELETE_MAIL", payload: mailId });
+    } catch (err) {
+      console.error("Error deleting mail:", err);
+      alert("❌ Failed to delete mail. Try again.");
+    }
+  };
 
   if (showCompose) return <ComposeMail />;
 
@@ -165,6 +184,19 @@ const Inbox = () => {
           </div>
         ))
       )}
+      <button
+        onClick={() => handleDelete(mail.id)}
+        style={{
+          backgroundColor: "red",
+          color: "white",
+          border: "none",
+          padding: "5px 10px",
+          borderRadius: "5px",
+          cursor: "pointer",
+        }}
+      >
+        🗑️
+      </button>
     </div>
   );
 };
