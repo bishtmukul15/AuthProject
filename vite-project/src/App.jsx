@@ -6,6 +6,7 @@ import Login from "./component/Login";
 import Home from "./pages/Home";
 import Header from "./component/Header";
 import Inbox from "./pages/Inbox";
+import SentBox from "./component/SentBox";
 
 const App = () => {
   return (
@@ -17,6 +18,7 @@ const App = () => {
         <Route path="/login" element={<Login />} />
         <Route path="/compose" element={<ComposeMail />} />
         <Route path="/inbox" element={<Inbox />} />
+        <Route path="/sent" element={<SentBox />} />
       </Routes>
     </Router>
   );
