@@ -1,4 +1,4 @@
-import React, { useEffect, useReducer, useState } from "react";
+import React, { useEffect, useReducer, useState, useRef } from "react";
 import axios from "axios";
 import { mailReducer, initialMailState } from "../reducers/mailReducer";
 import ComposeMail from "./ComposeMail";
@@ -10,34 +10,47 @@ const Inbox = () => {
   const [showCompose, setShowCompose] = useState(false);
 
   const userEmail = localStorage.getItem("email");
-
   const cleanEmail = (email) => email?.replace(/[@.]/g, "_");
+  const previousMailsRef = useRef([]); // for shallow compare
 
   // 🔹 Fetch inbox mails
-  useEffect(() => {
-    const fetchMails = async () => {
-      const userKey = cleanEmail(userEmail);
-      const url = `https://react-http-1c2c7-default-rtdb.asia-southeast1.firebasedatabase.app/mails/${userKey}/inbox.json`;
+  const fetchMails = async () => {
+    const userKey = cleanEmail(userEmail);
+    const url = `https://react-http-1c2c7-default-rtdb.asia-southeast1.firebasedatabase.app/mails/${userKey}/inbox.json`;
 
-      try {
-        const res = await axios.get(url);
-        if (res.data) {
-          const formatted = Object.entries(res.data).map(([id, mail]) => ({
-            id,
-            ...mail,
-          }));
+    try {
+      const res = await axios.get(url);
+      if (res.data) {
+        const formatted = Object.entries(res.data).map(([id, mail]) => ({
+          id,
+          ...mail,
+        }));
+
+        // 🔸 Compare with previous mails (avoid re-render if same)
+        const newData = JSON.stringify(formatted);
+        const oldData = JSON.stringify(previousMailsRef.current);
+
+        if (newData !== oldData) {
+          previousMailsRef.current = formatted;
           dispatch({ type: "SET_MAILS", payload: formatted.reverse() });
-        } else {
-          dispatch({ type: "SET_MAILS", payload: [] });
         }
-      } catch (err) {
-        console.error(err);
-        setError("❌ Could not load mails.");
-      } finally {
-        setLoading(false);
+      } else {
+        dispatch({ type: "SET_MAILS", payload: [] });
       }
-    };
-    fetchMails();
+    } catch (err) {
+      console.error(err);
+      setError("❌ Could not load mails.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 🔹 Initial fetch + start polling every 2 seconds
+  useEffect(() => {
+    fetchMails(); // first load
+    const interval = setInterval(fetchMails, 2000); // poll every 2s
+
+    return () => clearInterval(interval); // cleanup
   }, [userEmail]);
 
   // 🔹 Mark mail as read
@@ -56,25 +69,6 @@ const Inbox = () => {
       }
     }
     dispatch({ type: "SELECT_MAIL", payload: mail });
-  };
-  // 🔹 Delete mail
-  const handleDelete = async (mailId) => {
-    const confirmDelete = window.confirm(
-      "Are you sure you want to delete this mail?"
-    );
-    if (!confirmDelete) return;
-
-    const userKey = cleanEmail(userEmail);
-
-    try {
-      await axios.delete(
-        `https://react-http-1c2c7-default-rtdb.asia-southeast1.firebasedatabase.app/mails/${userKey}/inbox/${mailId}.json`
-      );
-      dispatch({ type: "DELETE_MAIL", payload: mailId });
-    } catch (err) {
-      console.error("Error deleting mail:", err);
-      alert("❌ Failed to delete mail. Try again.");
-    }
   };
 
   if (showCompose) return <ComposeMail />;
@@ -184,19 +178,6 @@ const Inbox = () => {
           </div>
         ))
       )}
-      <button
-        onClick={() => handleDelete(mail.id)}
-        style={{
-          backgroundColor: "red",
-          color: "white",
-          border: "none",
-          padding: "5px 10px",
-          borderRadius: "5px",
-          cursor: "pointer",
-        }}
-      >
-        🗑️
-      </button>
     </div>
   );
 };
